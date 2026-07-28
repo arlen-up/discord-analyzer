@@ -18,17 +18,16 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 async def main():
     async with bot:
-        # 모듈 로드
+        # Cog 모듈 로드
         await bot.load_extension("cogs.collector")
         await bot.load_extension("cogs.analyzer")
         await bot.load_extension("cogs.visualizer")
+        await bot.load_extension("cogs.summarizer") # ✨ [신규] Gemini 요약 모듈 로드
 
         @bot.event
         async def on_ready():
             print(f"Logged in as {bot.user.name}")
             print("---------------------------------------")
-            
-            # ✨ 슬래시 커맨드 강제 동기화 및 출력
             try:
                 synced = await bot.tree.sync()
                 print(f"✨ 총 {len(synced)}개의 슬래시 커맨드가 동기화되었습니다.")
@@ -36,7 +35,6 @@ async def main():
                     print(f" - /{command.name}")
             except Exception as e:
                 print(f"동기화 에러 발생: {e}")
-                
             print("준비 완료!")
 
         await bot.start(BOT_TOKEN)
