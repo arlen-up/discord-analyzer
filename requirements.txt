@@ -1,0 +1,6 @@
+discord.py
+pandas
+openai
+matplotlib
+wordcloud
+python-dotenv

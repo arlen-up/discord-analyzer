@@ -1,61 +1,72 @@
-import os
 import discord
 from discord import app_commands
 from discord.ext import commands
-import pandas as pd
+import asyncio
+import database
 
-class DataCollector(commands.Cog):
+class Collector(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.data_dir = "data"
-        if not os.path.exists(self.data_dir):
-            os.makedirs(self.data_dir)
+        database.init_db()
+        self.footer_text = "쪼맹이 봇 • Created by tella._."
 
-    @app_commands.command(name="수집", description="지정한 채널의 최근 메시지를 수집하여 저장합니다.")
-    @app_commands.describe(
-        channel="수집할 디스코드 채널을 선택하세요",
-        limit="수집할 메시지 최대 개수 (기본값: 1000)"
-    )
-    async def collect_command(self, interaction: discord.Interaction, channel: discord.TextChannel, limit: int = 1000):
-        await interaction.response.defer()
+    @app_commands.command(name="수집", description="[쪼맹이] 지정한 채널의 대화 데이터를 돋보기로 열심히 수집해서 DB에 적어둡니다.")
+    @app_commands.describe(channel="수집할 채널을 선택해줘! (미선택 시 현재 채널)", limit="수집할 메시지 개수 (기본값: 100개)")
+    async def collect_messages(self, interaction: discord.Interaction, channel: discord.TextChannel = None, limit: int = 100):
+        await interaction.response.defer(thinking=True)
 
+        target_channel = channel or interaction.channel
         messages_data = []
+
         try:
-            async for message in channel.history(limit=limit):
-                # 봇 메시지 제외 (필요 시 주석 해제)
-                # if message.author.bot:
-                #     continue
+            print(f"📥 쪼맹이 출동! #{target_channel.name} 채널 메시지 수집 시작 (목표: {limit}개)...")
 
-                messages_data.append({
-                    "message_id": message.id,
-                    "created_at": message.created_at,
-                    "author_id": message.author.id,          # 👈 클릭 가능한 멘션 핵심 데이터
-                    "author_name": message.author.name,
-                    "content": message.content,
-                    "attachments_count": len(message.attachments),
-                    "reactions_count": sum(r.count for r in message.reactions) if message.reactions else 0
-                })
+            async for message in target_channel.history(limit=limit):
+                if message.type in (discord.MessageType.default, discord.MessageType.reply):
+                    messages_data.append((
+                        message.id,
+                        target_channel.id,
+                        target_channel.name,
+                        message.author.id,
+                        message.author.name,
+                        message.content,
+                        sum(r.count for r in message.reactions) if message.reactions else 0,
+                        message.created_at.isoformat()
+                    ))
 
-            df = pd.DataFrame(messages_data)
-            file_path = os.path.join(self.data_dir, f"{channel.name}_messages.csv")
-            
-            # utf-8-sig 인코딩으로 한글 및 특수문자 깨짐 방지
-            df.to_csv(file_path, index=False, encoding="utf-8-sig")
+            if messages_data:
+                await asyncio.to_thread(database.save_messages, messages_data)
+                
+                # 🟢 성공: 초록색
+                embed = discord.Embed(
+                    title="📥 쪼맹이의 대화 수집 완료!",
+                    description=f"**#{target_channel.name}** 채널에서 총 **{len(messages_data):,}개**의 메시지를 돋보기로 싹 훑어서 DB 장부에 잘 넣어뒀어! 📝",
+                    color=discord.Color(0x2ECC71)
+                )
+                embed.set_footer(text=self.footer_text)
+                await interaction.followup.send(embed=embed)
+            else:
+                # 🔴 경고: 빨간색
+                embed = discord.Embed(
+                    title="⚠️ 쪼맹이 당황... 수집할 게 없어!",
+                    description=f"**#{target_channel.name}** 채널에 수집할 메시지가 없거나 쪼맹이가 읽을 수 없는 상태야! 확인해 줘!",
+                    color=discord.Color(0xE74C3C)
+                )
+                embed.set_footer(text=self.footer_text)
+                await interaction.followup.send(embed=embed)
 
+        except discord.Forbidden:
+            # 🔴 경고: 빨간색
             embed = discord.Embed(
-                title="✅ 데이터 수집 완료",
-                description=f"{channel.mention} 채널에서 **{len(df):,}개**의 메시지를 수집했습니다.\n`data/{channel.name}_messages.csv` 경로에 저장되었습니다.",
-                color=discord.Color.green()
+                title="❌ 쪼맹이 접근 금지!",
+                description=f"쪼맹이한테 **#{target_channel.name}** 채널의 **'메시지 기록 읽기'** 권한이 없어! 권한 좀 줄래? 😤",
+                color=discord.Color(0xE74C3C)
             )
+            embed.set_footer(text=self.footer_text)
             await interaction.followup.send(embed=embed)
 
         except Exception as e:
-            embed = discord.Embed(
-                title="❌ 데이터 수집 실패",
-                description=f"오류가 발생했습니다: {str(e)}",
-                color=discord.Color.red()
-            )
-            await interaction.followup.send(embed=embed)
+            await interaction.followup.send(f"❌ 쪼맹이가 메시지 적다가 연필심이 부러졌어! 오류 발생: `{e}`")
 
 async def setup(bot):
-    await bot.add_cog(DataCollector(bot))
+    await bot.add_cog(Collector(bot))

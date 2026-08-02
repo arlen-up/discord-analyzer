@@ -1,14 +1,18 @@
-# 비밀번호 및 토큰
+# 환경 변수 (API 키, 봇 토큰 등)
 .env
 
-# 파이썬 가상환경 및 캐시
-venv/
+# 데이터베이스 및 로컬 수집 데이터
+*.db
+*.sqlite3
+
+# 파이썬 캐시 파일
 __pycache__/
-*.pyc
+*.py[cod]
+.pytest_cache/
 
-#수집된 데이터 폴더 및 csv
-data/
-*.csv
+# 가상환경 (venv)
+venv/
+.venv/
 
-# Mac OS 시스템 파일
+# Matplotlib 및 운영체제 캐시
 .DS_Store
