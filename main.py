@@ -2,42 +2,42 @@ import os
 import asyncio
 import discord
 from discord.ext import commands
-from dotenv import load_dotenv
-
-load_dotenv()
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-
-if not BOT_TOKEN:
-    print("❌ 에러: .env 파일에서 BOT_TOKEN을 읽어오지 못했습니다.")
-    exit()
 
 intents = discord.Intents.default()
 intents.message_content = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
+initial_extensions = [
+    "cogs.collector",
+    "cogs.analyzer",
+    "cogs.visualizer",
+    "cogs.summarizer",
+    "cogs.help",
+    "cogs.auto_collector"
+]
+
+@bot.event
+async def on_ready():
+    print(f"Logged in as {bot.user.name} ({bot.user.id})")
+    try:
+        synced = await bot.tree.sync()
+        print(f"Synced {len(synced)} command(s)")
+    except Exception as e:
+        print(f"Failed to sync commands: {e}")
+
 async def main():
     async with bot:
-        # Cog 모듈 로드
-        await bot.load_extension("cogs.collector")
-        await bot.load_extension("cogs.analyzer")
-        await bot.load_extension("cogs.visualizer")
-        await bot.load_extension("cogs.summarizer") # ✨ [신규] Gemini 요약 모듈 로드
-
-        @bot.event
-        async def on_ready():
-            print(f"Logged in as {bot.user.name}")
-            print("---------------------------------------")
+        for extension in initial_extensions:
             try:
-                synced = await bot.tree.sync()
-                print(f"✨ 총 {len(synced)}개의 슬래시 커맨드가 동기화되었습니다.")
-                for command in synced:
-                    print(f" - /{command.name}")
+                await bot.load_extension(extension)
+                print(f"Loaded extension '{extension}'")
             except Exception as e:
-                print(f"동기화 에러 발생: {e}")
-            print("준비 완료!")
-
-        await bot.start(BOT_TOKEN)
+                print(f"Failed to load extension {extension}: {e}")
+        
+        # BOT TOKEN 환경 변수 혹은 문자열 입력
+        token = os.getenv("DISCORD_BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
+        await bot.start(token)
 
 if __name__ == "__main__":
     asyncio.run(main())
