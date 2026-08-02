@@ -23,7 +23,7 @@ initial_extensions = [
     "cogs.visualizer",
     "cogs.summarizer",
     "cogs.help",
-    "cogs.status"
+    "cogs.status",
     "cogs.minigame"
 ]
 
