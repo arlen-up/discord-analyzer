@@ -24,6 +24,7 @@ initial_extensions = [
     "cogs.summarizer",
     "cogs.help",
     "cogs.status"
+    "cogs.minigame"
 ]
 
 @bot.event
